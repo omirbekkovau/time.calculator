@@ -1,0 +1,757 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Time Calculator</title>
+<meta name="theme-color" content="#f6f3ec" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1417" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Ccircle cx='24' cy='24' r='19' fill='none' stroke='%230f766e' stroke-width='6'/%3E%3Cpath d='M24 12v13l8 5' fill='none' stroke='%230f766e' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E">
+<meta name="description" content="Find out how much you underestimate task time and plan with a correction.">
+<style>
+:root {
+  --bg: #f6f3ec;
+  --card: #fffdf9;
+  --ink: #1f2a2e;
+  --muted: #5d6b70;
+  --line: #e4ded2;
+  --accent: #0f766e;
+  --accent-ink: #ffffff;
+  --soft: #e3f1ee;
+  --bar-expect: #a9bcbf;
+  --real: #c2570c;
+  --warn: #8a5410;
+  --warn-bg: #fcf0dc;
+  --ok: #166534;
+  --shadow: 0 1px 2px rgba(20, 30, 30, .05), 0 10px 28px -14px rgba(20, 30, 30, .16);
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e1417;
+    --card: #162024;
+    --ink: #e6eef0;
+    --muted: #93a4a9;
+    --line: #25343a;
+    --accent: #4fd1c0;
+    --accent-ink: #06201c;
+    --soft: #15302d;
+    --bar-expect: #566b70;
+    --real: #f5a64f;
+    --warn: #f0be78;
+    --warn-bg: #2a2317;
+    --ok: #6ee7a8;
+    --shadow: none;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+main { max-width: 720px; margin: 0 auto; padding: 14px 16px 56px; }
+
+/* top bar */
+.top { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; color: var(--accent); }
+.logo { width: 30px; height: 30px; flex: none; }
+.brand-name { font-family: var(--serif); font-weight: 700; font-size: 1.15rem; color: var(--ink); letter-spacing: .01em; }
+.lang { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--card); }
+.lang button { border: 0; border-radius: 0; min-height: 34px; padding: 3px 13px; background: transparent; color: var(--muted); font-weight: 700; font-size: .85rem; letter-spacing: .04em; }
+.lang button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+
+/* type */
+h1 { font-family: var(--serif); font-size: clamp(1.75rem, 6vw, 2.35rem); line-height: 1.12; margin: 4px 0 10px; letter-spacing: -.01em; }
+h2 { font-family: var(--serif); font-size: 1.15rem; margin: 0 0 12px; }
+.lead { color: var(--muted); margin: 0; }
+
+/* cards */
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 18px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow);
+}
+.hero { padding: 22px 20px; }
+.steps { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 8px; }
+.steps li { display: flex; align-items: center; gap: 12px; font-size: .95rem; }
+.steps .n {
+  flex: none; width: 26px; height: 26px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--soft); color: var(--accent); font-weight: 700; font-size: .85rem;
+}
+
+/* multiplier + gauge */
+.k-row { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.k-big { font-family: var(--serif); font-size: 3.4rem; font-weight: 700; color: var(--accent); line-height: 1; letter-spacing: -.02em; }
+.k-text { color: var(--muted); flex: 1 1 220px; }
+.gauge { margin-top: 16px; display: grid; gap: 8px; }
+.g-row { display: grid; grid-template-columns: 7.4rem 1fr; align-items: center; gap: 10px; }
+.g-label { font-size: .82rem; color: var(--muted); }
+.g-track { height: 12px; border-radius: 8px; background: var(--soft); overflow: hidden; }
+.g-bar { height: 100%; border-radius: 8px; width: 0; transition: width .7s cubic-bezier(.2, .8, .2, 1); }
+.g-expect { background: var(--bar-expect); }
+.g-real { background: var(--real); }
+
+/* form */
+label { display: block; font-weight: 600; font-size: .92rem; margin: 14px 0 6px; }
+label small { font-weight: 400; color: var(--muted); }
+input[type=text], input[type=number], input[type=datetime-local] {
+  width: 100%;
+  font: inherit;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 11px 13px;
+  transition: border-color .15s, box-shadow .15s;
+}
+input:hover { border-color: var(--bar-expect); }
+input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+button {
+  font: inherit;
+  cursor: pointer;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  padding: 9px 15px;
+  min-height: 42px;
+  transition: border-color .15s, background-color .15s, transform .05s;
+}
+button:hover { border-color: var(--accent); }
+button:active { transform: translateY(1px); }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
+button.primary:hover { filter: brightness(1.06); }
+button.chip { padding: 6px 13px; min-height: 36px; background: var(--soft); border-color: transparent; color: var(--accent); font-weight: 600; }
+button.ghost { background: transparent; border-color: transparent; color: var(--muted); min-height: 32px; padding: 2px 10px; }
+button.ghost:hover { color: var(--real); }
+button.danger { color: var(--warn); }
+
+.preview { margin-top: 16px; background: var(--soft); border-radius: 14px; padding: 13px 15px; }
+.preview[hidden] { display: none; }
+.preview .line { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; }
+.preview .total { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 9px; font-weight: 700; font-size: 1.05rem; }
+.preview .when { margin-top: 8px; }
+.note { border-radius: 12px; padding: 10px 12px; margin-top: 10px; background: var(--warn-bg); color: var(--warn); }
+.actions { margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* log */
+ul.items { list-style: none; margin: 0; padding: 0; }
+.item { border-top: 1px solid var(--line); padding: 14px 0; }
+.item:first-child { border-top: 0; padding-top: 0; }
+.item-top { display: flex; justify-content: space-between; align-items: start; gap: 10px; }
+.item-top strong { overflow-wrap: anywhere; font-size: 1.02rem; }
+.meta { color: var(--muted); font-size: .92rem; margin: 2px 0 8px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.row input[type=text], .row input[type=number] { width: 130px; }
+.done { color: var(--ok); font-weight: 600; }
+.bars { display: grid; gap: 5px; margin-top: 8px; }
+.b-row { display: grid; grid-template-columns: 4.6rem 1fr; align-items: center; gap: 8px; font-size: .78rem; color: var(--muted); }
+.b-track { height: 7px; border-radius: 5px; background: var(--soft); overflow: hidden; }
+.b-bar { height: 100%; border-radius: 5px; }
+.b-est { background: var(--bar-expect); }
+.b-act { background: var(--real); }
+.timer { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 1.15rem; color: var(--accent); display: inline-flex; align-items: center; gap: 8px; }
+.timer::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--real); animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.8); } }
+.empty { color: var(--muted); margin: 0; }
+
+.toast {
+  position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%);
+  background: var(--ink); color: var(--bg);
+  padding: 10px 16px; border-radius: 12px; font-size: .95rem; max-width: 90vw;
+  opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+.toast.show { opacity: 1; }
+footer { color: var(--muted); font-size: .9rem; margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--line); }
+
+@media (max-width: 420px) {
+  .g-row { grid-template-columns: 6.3rem 1fr; }
+  .k-big { font-size: 3rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+</style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 48 48" aria-hidden="true">
+        <circle cx="24" cy="24" r="19" fill="none" stroke="currentColor" stroke-opacity=".2" stroke-width="5"/>
+        <path d="M24 5A19 19 0 1 1 6 30.2" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+        <path d="M24 24V13M24 24l8 5" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="brand-name" data-i18n="title">Time Calculator</span>
+    </div>
+    <div class="lang" role="group" aria-label="Language">
+      <button type="button" data-lang="en" aria-pressed="true">EN</button>
+      <button type="button" data-lang="ru" aria-pressed="false">RU</button>
+    </div>
+  </header>
+
+  <section class="card hero">
+    <h1 data-i18n="heroTitle">How long will it really take?</h1>
+    <p class="lead" data-i18n="lead"></p>
+    <ol class="steps">
+      <li><span class="n">1</span><span data-i18n="step1"></span></li>
+      <li><span class="n">2</span><span data-i18n="step2"></span></li>
+      <li><span class="n">3</span><span data-i18n="step3"></span></li>
+    </ol>
+  </section>
+
+  <noscript><div class="card">This calculator needs JavaScript. / Для работы калькулятора нужен JavaScript.</div></noscript>
+
+  <section class="card" aria-labelledby="k-title">
+    <h2 id="k-title" data-i18n="kTitle"></h2>
+    <div class="k-row">
+      <div class="k-big" id="kBig">×1.5</div>
+      <div class="k-text" id="kText"></div>
+    </div>
+    <div class="gauge" aria-hidden="true">
+      <div class="g-row"><span class="g-label" data-i18n="barExpect"></span><div class="g-track"><div class="g-bar g-expect" id="gExpect"></div></div></div>
+      <div class="g-row"><span class="g-label" data-i18n="barReal"></span><div class="g-track"><div class="g-bar g-real" id="gReal"></div></div></div>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="new-title">
+    <h2 id="new-title" data-i18n="newTitle"></h2>
+    <form id="newForm" autocomplete="off">
+      <label for="name" style="margin-top:0"><span data-i18n="nameLabel"></span> <small data-i18n="optional"></small></label>
+      <input type="text" id="name" maxlength="80" data-i18n-ph="namePh">
+
+      <label for="est" data-i18n="estLabel"></label>
+      <input type="number" id="est" inputmode="numeric" min="1" max="6000" step="1" data-i18n-ph="estPh" required>
+      <div class="chips" role="group" data-i18n-label="quickPick">
+        <button type="button" class="chip" data-min="15" data-i18n="chip15"></button>
+        <button type="button" class="chip" data-min="30" data-i18n="chip30"></button>
+        <button type="button" class="chip" data-min="60" data-i18n="chip60"></button>
+        <button type="button" class="chip" data-min="120" data-i18n="chip120"></button>
+      </div>
+
+      <label for="deadline"><span data-i18n="deadlineLabel"></span> <small data-i18n="deadlineHint"></small></label>
+      <input type="datetime-local" id="deadline">
+
+      <div class="preview" id="preview" hidden aria-live="polite"></div>
+
+      <div class="actions">
+        <button type="submit" class="primary" data-i18n="addBtn"></button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card" aria-labelledby="log-title">
+    <h2 id="log-title" data-i18n="logTitle"></h2>
+    <p class="empty" id="empty" data-i18n="empty"></p>
+    <ul class="items" id="items"></ul>
+  </section>
+
+  <section class="card" aria-labelledby="data-title">
+    <h2 id="data-title" data-i18n="dataTitle"></h2>
+    <div class="actions" style="margin-top:0">
+      <button type="button" id="copyBtn" data-i18n="copyBtn"></button>
+      <button type="button" id="formBtn" hidden data-i18n="formBtn"></button>
+      <button type="button" id="csvBtn" data-i18n="csvBtn"></button>
+      <button type="button" id="clearBtn" class="danger" data-i18n="clearBtn"></button>
+    </div>
+    <p class="meta" style="margin-top:10px" data-i18n="dataNote"></p>
+  </section>
+
+  <footer data-i18n="footer"></footer>
+</main>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ---- Settings (you can change these) ----
+  // Link to an anonymous Google Form for the "course average". If empty, the send button stays hidden.
+  var FORM_URL = '';
+  var DEFAULT_K = 1.5;        // starter rule
+  var MIN_N = 3;              // measured tasks needed for a personal multiplier
+  var BUFFER_PER_HOUR = 10;   // buffer: minutes per hour of work
+  var RESERVE_H = 24;         // plan to finish this many hours before the deadline
+  var KEY = 'time-calculator-v1';
+  var LANG_KEY = 'time-calculator-lang';
+
+  // ---- Translations ----
+  function ruPlural(n, one, few, many) {
+    var a = n % 10, b = n % 100;
+    if (a === 1 && b !== 11) return one;
+    if (a >= 2 && a <= 4 && (b < 12 || b > 14)) return few;
+    return many;
+  }
+  var T = {
+    en: {
+      title: 'Time Calculator',
+      lead: 'Almost everyone underestimates how long a task will take. That’s normal: it’s how time works in our heads. Measure yourself a few times, then plan with a correction. No scores, no rankings.',
+      kTitle: 'My multiplier',
+      heroTitle: 'How long will it really take?',
+      step1: 'Guess how long a task will take.',
+      step2: 'Press Start and Stop to measure the real time.',
+      step3: 'Get your own multiplier and plan with it.',
+      barExpect: 'What you expect', barReal: 'What it takes',
+      lblEst: 'Estimate', lblAct: 'Actual',
+      newTitle: 'Estimate a new task',
+      nameLabel: 'What is the task?', optional: '(optional)',
+      namePh: 'e.g. philosophy essay',
+      estLabel: 'How many minutes do you think it will take?',
+      estPh: 'Your first guess, e.g. 30',
+      quickPick: 'Quick pick',
+      chip15: '15 min', chip30: '30 min', chip60: '1 hour', chip120: '2 hours',
+      deadlineLabel: 'Deadline', deadlineHint: '(optional, I’ll work out when to start)',
+      addBtn: 'Add to log',
+      logTitle: 'Task log',
+      empty: 'Nothing here yet. Add a task above, press “Start” when you begin and “Stop” when you finish. The calculator records the actual time for you.',
+      dataTitle: 'Data',
+      copyBtn: 'Copy text for the group chat',
+      formBtn: 'Send anonymously to the course average',
+      csvBtn: 'Download CSV',
+      clearBtn: 'Clear all',
+      clearSure: 'Really delete everything?',
+      dataNote: 'Everything is stored only in your browser. Nothing is sent automatically. If you clear your browser data the log disappears, so download a CSV once in a while.',
+      footer: 'The ×1.5 rule is a starting point: after three measured tasks the calculator replaces it with your own number. If even with the correction there are more tasks than fit in your week, that’s a reason to talk to your teacher early, not to work faster.',
+      taskWord: function (n) { return n === 1 ? 'task' : 'tasks'; },
+      kPersonal: function (n, k, w) { return 'Based on your ' + n + ' ' + w + ': on average, tasks take ' + k + '× longer than you expect. New estimates use this correction.'; },
+      kFew: function (n, raw, w, left, lw) { return 'The starter rule ×1.5 is used for now. Based on ' + n + ' measured ' + w + ' you are at ×' + raw + ', but that’s too little data. Measure ' + left + ' more ' + lw + ' to get your personal number.'; },
+      kZero: function (m) { return 'The starter rule applies for now: multiply your first guess by 1.5. Measure ' + m + ' tasks to get your personal number.'; },
+      pvGuess: 'Your first guess',
+      pvCorr: function (k) { return 'With correction ×' + k; },
+      pvBuffer: function (m) { return 'Buffer (' + m + ' min per hour)'; },
+      pvPlan: 'Plan for',
+      pvWhen: function (d) { return 'Start no later than: ' + d + ' (so you finish a day before the deadline).'; },
+      pvLate: 'With a one-day reserve there isn’t enough time left. That’s a reason to talk to your teacher early or rebalance your workload, not to work faster.',
+      unnamed: 'Untitled',
+      itemMeta: function (est, k, f) { return 'Estimate ' + est + ' → with ×' + k + ': ' + f; },
+      itemDone: function (fact, k) { return 'Actual: ' + fact + ' · multiplier ×' + k; },
+      underMinute: 'under a minute',
+      del: 'Delete task', start: 'Start', stop: 'Stop', or: 'or',
+      factPh: 'actual, min', factAria: 'How many minutes it really took', saveFact: 'Save actual',
+      tEnterEst: 'Enter an estimate in minutes',
+      tAdded: 'Added. Press “Start” when you begin.',
+      tEnterFact: 'Enter a number of minutes, e.g. 25',
+      tShort: 'Under 30 seconds: looks like an accidental tap, the timer was reset',
+      tNeedOne: 'Record the actual time for at least one task first',
+      tCopied: 'Copied. Paste it into the group chat.',
+      tCopyFail: 'Could not copy',
+      tFormCopied: 'Your multiplier is copied, paste it into the form',
+      tCsvFail: 'Could not download the file',
+      tCleared: 'Data deleted',
+      chat: function (k, n, w, url) { return 'My time multiplier is ×' + k + ' (based on ' + n + ' ' + w + '): my tasks take ' + k + '× longer than I expect. Measure yours: ' + url; },
+      h: 'h', min: 'min'
+    },
+    ru: {
+      title: 'Калькулятор времени',
+      lead: 'Почти все люди занижают, сколько времени займёт задание. Это нормально: так устроено время в голове. Замерь себя несколько раз и дальше планируй с поправкой. Никаких оценок и рейтингов.',
+      kTitle: 'Мой коэффициент',
+      heroTitle: 'Сколько это займёт на самом деле?',
+      step1: 'Прикинь, сколько займёт задание.',
+      step2: 'Нажми «Старт» и «Стоп», чтобы замерить реальное время.',
+      step3: 'Получи свой коэффициент и планируй с ним.',
+      barExpect: 'Что ожидаешь', barReal: 'Что выходит',
+      lblEst: 'Оценка', lblAct: 'Факт',
+      newTitle: 'Оцени новое задание',
+      nameLabel: 'Что за задание?', optional: '(необязательно)',
+      namePh: 'Например: эссе по философии',
+      estLabel: 'Сколько минут ты думаешь, что это займёт?',
+      estPh: 'Твоя первая мысль, например 30',
+      quickPick: 'Быстрый выбор',
+      chip15: '15 мин', chip30: '30 мин', chip60: '1 час', chip120: '2 часа',
+      deadlineLabel: 'Срок сдачи', deadlineHint: '(необязательно, посчитаю, когда начать)',
+      addBtn: 'Добавить в журнал',
+      logTitle: 'Журнал заданий',
+      empty: 'Пока пусто. Добавь задание выше, нажми «Старт», когда начнёшь, и «Стоп», когда закончишь. Калькулятор сам запишет факт.',
+      dataTitle: 'Данные',
+      copyBtn: 'Скопировать текст для чата',
+      formBtn: 'Отправить анонимно в «цифру курса»',
+      csvBtn: 'Скачать CSV',
+      clearBtn: 'Очистить всё',
+      clearSure: 'Точно удалить всё?',
+      dataNote: 'Всё хранится только в твоём браузере. Ничего не отправляется автоматически. Если очистишь данные браузера, журнал пропадёт, поэтому иногда скачивай CSV.',
+      footer: 'Правило «умножь на 1,5» — стартовое: после трёх замеренных заданий калькулятор заменит его твоим личным числом. Если даже с поправкой заданий больше, чем влезает в неделю, это повод заранее поговорить с преподавателем, а не работать быстрее.',
+      taskWord: function (n) { return ruPlural(n, 'заданию', 'заданиям', 'заданиям'); },
+      kPersonal: function (n, k, w) { return 'Посчитано по ' + n + ' ' + w + ': в среднем уходит в ' + k + ' раза больше времени, чем кажется. Новые оценки считаются с этой поправкой.'; },
+      kFew: function (n, raw, w, left, lw) { return 'Пока работает стартовое правило ×1,5. По ' + n + ' ' + w + ' выходит ×' + raw + ', но данных мало. Замерь ещё ' + left + ' ' + lw + ', и здесь появится твоё личное число.'; },
+      kZero: function (m) { return 'Пока работает стартовое правило: умножай первую оценку на 1,5. Замерь ' + m + ' задания, и здесь появится твоё личное число.'; },
+      pvGuess: 'Твоя первая оценка',
+      pvCorr: function (k) { return 'С поправкой ×' + k; },
+      pvBuffer: function (m) { return 'Запас (' + m + ' мин на каждый час)'; },
+      pvPlan: 'Закладывай на задание',
+      pvWhen: function (d) { return 'Начни не позже: ' + d + ' (так ты закончишь за сутки до срока).'; },
+      pvLate: 'С запасом в сутки времени уже не хватает. Это повод заранее написать преподавателю или перераспределить дела, а не работать быстрее.',
+      unnamed: 'Без названия',
+      itemMeta: function (est, k, f) { return 'Оценка ' + est + ' → с поправкой ×' + k + ': ' + f; },
+      itemDone: function (fact, k) { return 'Факт: ' + fact + ' · коэффициент ×' + k; },
+      underMinute: 'меньше минуты',
+      del: 'Удалить задание', start: 'Старт', stop: 'Стоп', or: 'или',
+      factPh: 'факт, мин', factAria: 'Сколько минут ушло на самом деле', saveFact: 'Записать факт',
+      tEnterEst: 'Введи оценку в минутах',
+      tAdded: 'Добавлено. Нажми «Старт», когда начнёшь.',
+      tEnterFact: 'Введи число минут, например 25',
+      tShort: 'Меньше 30 секунд: похоже на случайное нажатие, секундомер сброшен',
+      tNeedOne: 'Сначала запиши факт хотя бы для одного задания',
+      tCopied: 'Скопировано. Вставь в чат курса.',
+      tCopyFail: 'Не получилось скопировать',
+      tFormCopied: 'Твой коэффициент скопирован, вставь его в форму',
+      tCsvFail: 'Не получилось скачать файл',
+      tCleared: 'Данные удалены',
+      chat: function (k, n, w, url) { return 'Мой коэффициент времени ×' + k + ' (по ' + n + ' ' + w + '): на задания у меня уходит в ' + k + ' раза больше времени, чем я думаю. Замерь свой: ' + url; },
+      h: 'ч', min: 'мин'
+    }
+  };
+
+  var lang = 'en';
+  try { var saved = localStorage.getItem(LANG_KEY); if (saved === 'ru' || saved === 'en') lang = saved; } catch (e) {}
+  function t(key) {
+    var v = T[lang][key];
+    if (typeof v === 'function') return v.apply(null, Array.prototype.slice.call(arguments, 1));
+    return v;
+  }
+  // plural helper for the word "task" in the current language
+  function taskWord(n) { return T[lang].taskWord(n); }
+  function taskNom(n) { // nominative, used in "measure N more tasks"
+    if (lang === 'ru') return ruPlural(n, 'задание', 'задания', 'заданий');
+    return n === 1 ? 'task' : 'tasks';
+  }
+  function taskDat(n) { // dative, used in "based on N tasks" (Russian), same as plural in English
+    if (lang === 'ru') return ruPlural(n, 'заданию', 'заданиям', 'заданиям');
+    return n === 1 ? 'task' : 'tasks';
+  }
+
+  // ---- Storage (with in-memory fallback if localStorage is unavailable) ----
+  var memStore = null;
+  function load() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (raw) {
+        var d = JSON.parse(raw);
+        if (d && Array.isArray(d.items)) return d;
+      }
+    } catch (e) {}
+    return memStore || { items: [] };
+  }
+  var state = load();
+  function save() {
+    memStore = state;
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+  }
+
+  // ---- Helpers ----
+  function $(id) { return document.getElementById(id); }
+  function el(tag, props) {
+    var n = document.createElement(tag);
+    if (props) {
+      Object.keys(props).forEach(function (k) {
+        var v = props[k];
+        if (k === 'class') n.className = v;
+        else if (k === 'text') n.textContent = v;
+        else n.setAttribute(k, v);
+      });
+    }
+    for (var i = 2; i < arguments.length; i++) {
+      var c = arguments[i];
+      if (c == null) continue;
+      n.append(c.nodeType ? c : document.createTextNode(c));
+    }
+    return n;
+  }
+  function num(v) {
+    var x = parseFloat(String(v).replace(',', '.'));
+    return isFinite(x) ? x : NaN;
+  }
+  function fmtK(k) {
+    var s = (Math.round(k * 10) / 10).toFixed(1);
+    return lang === 'ru' ? s.replace('.', ',') : s;
+  }
+  function fmtMin(m) {
+    var r = Math.round(m);
+    if (r < 60) return r + ' ' + t('min');
+    var h = Math.floor(r / 60), mm = r % 60;
+    return h + ' ' + t('h') + (mm ? ' ' + mm + ' ' + t('min') : '');
+  }
+  function fmtFact(m) { return m < 1 ? t('underMinute') : fmtMin(m); }
+  function fmtClock(ms) {
+    var s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+    var p = function (x) { return (x < 10 ? '0' : '') + x; };
+    return (h ? h + ':' + p(m) : m) + ':' + p(sec);
+  }
+  function fmtDate(d) {
+    return d.toLocaleString(lang === 'ru' ? 'ru-RU' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+  }
+  var toastTimer = null;
+  function toast(msg) {
+    var x = $('toast');
+    x.textContent = msg;
+    x.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { x.classList.remove('show'); }, 2200);
+  }
+
+  // ---- Multiplier ----
+  function measured() {
+    return state.items.filter(function (it) { return it.fact > 0 && it.est > 0; });
+  }
+  function coef() {
+    var m = measured();
+    var n = m.length;
+    var raw = n ? m.reduce(function (s, it) { return s + it.fact / it.est; }, 0) / n : null;
+    return { n: n, raw: raw, k: n >= MIN_N ? raw : DEFAULT_K, personal: n >= MIN_N };
+  }
+
+  function renderK() {
+    var c = coef();
+    $('kBig').textContent = '×' + fmtK(c.k);
+    var txt;
+    if (c.personal) {
+      txt = t('kPersonal', c.n, fmtK(c.k), taskDat(c.n));
+    } else if (c.n > 0) {
+      var left = MIN_N - c.n;
+      txt = t('kFew', c.n, fmtK(c.raw), taskDat(c.n), left, taskNom(left));
+    } else {
+      txt = t('kZero', MIN_N);
+    }
+    $('kText').textContent = txt;
+    // gauge: the longer bar is always 100 %, the other one is scaled by the multiplier
+    var kk = c.k > 0 ? c.k : 1;
+    $('gExpect').style.width = (kk >= 1 ? 100 / kk : 100) + '%';
+    $('gReal').style.width = (kk >= 1 ? 100 : 100 * kk) + '%';
+  }
+
+  function barsNode(est, fact) {
+    var max = Math.max(est, fact);
+    function row(label, val, cls) {
+      return el('div', { class: 'b-row' },
+        el('span', { text: label }),
+        el('div', { class: 'b-track' }, el('div', { class: 'b-bar ' + cls, style: 'width:' + Math.max(2, val / max * 100) + '%' })));
+    }
+    return el('div', { class: 'bars', 'aria-hidden': 'true' }, row(t('lblEst'), est, 'b-est'), row(t('lblAct'), fact, 'b-act'));
+  }
+
+  // ---- Estimate preview ----
+  function renderPreview() {
+    var box = $('preview');
+    var est = num($('est').value);
+    box.textContent = '';
+    if (!(est >= 1)) { box.hidden = true; return; }
+    var c = coef();
+    var forecast = Math.round(est * c.k);
+    var buffer = Math.round(est * c.k / 60 * BUFFER_PER_HOUR);
+    var total = forecast + buffer;
+    function line(a, b, cls) {
+      return el('div', { class: 'line' + (cls ? ' ' + cls : '') }, el('span', { text: a }), el('span', { text: b }));
+    }
+    box.append(
+      line(t('pvGuess'), fmtMin(est)),
+      line(t('pvCorr', fmtK(c.k)), fmtMin(forecast)),
+      line(t('pvBuffer', BUFFER_PER_HOUR), '+ ' + fmtMin(buffer)),
+      line(t('pvPlan'), fmtMin(total), 'total')
+    );
+    var dv = $('deadline').value;
+    if (dv) {
+      var dl = new Date(dv);
+      if (!isNaN(dl.getTime())) {
+        var startBy = new Date(dl.getTime() - total * 60000 - RESERVE_H * 3600000);
+        if (startBy.getTime() < Date.now()) {
+          box.append(el('div', { class: 'note', text: t('pvLate') }));
+        } else {
+          box.append(el('div', { class: 'when', text: t('pvWhen', fmtDate(startBy)) }));
+        }
+      }
+    }
+    box.hidden = false;
+  }
+
+  // ---- Log ----
+  function renderJournal() {
+    var list = $('items');
+    list.textContent = '';
+    $('empty').hidden = state.items.length > 0;
+    state.items.slice().reverse().forEach(function (it) {
+      var li = el('li', { class: 'item', 'data-id': it.id });
+      var del = el('button', { type: 'button', class: 'ghost', 'data-act': 'del', 'aria-label': t('del'), text: '✕' });
+      li.append(el('div', { class: 'item-top' }, el('strong', { text: it.name || t('unnamed') }), del));
+      li.append(el('div', { class: 'meta', text: t('itemMeta', fmtMin(it.est), fmtK(it.kUsed), fmtMin(it.forecast)) }));
+      if (it.fact > 0) {
+        li.append(el('div', { class: 'done', text: t('itemDone', fmtFact(it.fact), fmtK(it.fact / it.est)) }));
+        li.append(barsNode(it.est, it.fact));
+      } else if (it.startedAt) {
+        li.append(el('div', { class: 'row' },
+          el('span', { class: 'timer', 'data-timer': it.id, text: fmtClock(Date.now() - it.startedAt) }),
+          el('button', { type: 'button', class: 'primary', 'data-act': 'stop', text: t('stop') })
+        ));
+      } else {
+        var inp = el('input', { type: 'text', inputmode: 'decimal', placeholder: t('factPh'), 'aria-label': t('factAria') });
+        li.append(el('div', { class: 'row' },
+          el('button', { type: 'button', class: 'primary', 'data-act': 'start', text: t('start') }),
+          el('span', { class: 'meta', text: t('or') }),
+          inp,
+          el('button', { type: 'button', 'data-act': 'setfact', text: t('saveFact') })
+        ));
+      }
+      list.append(li);
+    });
+  }
+  function findItem(li) {
+    var id = li && li.getAttribute('data-id');
+    for (var i = 0; i < state.items.length; i++) if (String(state.items[i].id) === id) return state.items[i];
+    return null;
+  }
+  $('items').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-act]');
+    if (!b) return;
+    var li = b.closest('li');
+    var it = findItem(li);
+    if (!it) return;
+    var act = b.getAttribute('data-act');
+    if (act === 'del') {
+      state.items = state.items.filter(function (x) { return x !== it; });
+    } else if (act === 'start') {
+      it.startedAt = Date.now();
+    } else if (act === 'stop') {
+      var elapsed = Date.now() - it.startedAt;
+      it.startedAt = null;
+      if (elapsed < 30000) {
+        toast(t('tShort'));
+      } else {
+        it.fact = Math.round(elapsed / 6000) / 10;
+      }
+    } else if (act === 'setfact') {
+      var v = num(li.querySelector('input').value);
+      if (!(v > 0)) { toast(t('tEnterFact')); return; }
+      it.fact = Math.round(v * 10) / 10;
+    }
+    save(); renderAll();
+  });
+  setInterval(function () {
+    state.items.forEach(function (it) {
+      if (it.startedAt) {
+        var s = document.querySelector('[data-timer="' + it.id + '"]');
+        if (s) s.textContent = fmtClock(Date.now() - it.startedAt);
+      }
+    });
+  }, 1000);
+
+  // ---- Form ----
+  $('est').addEventListener('input', renderPreview);
+  $('deadline').addEventListener('input', renderPreview);
+  document.querySelectorAll('.chip').forEach(function (b) {
+    b.addEventListener('click', function () {
+      $('est').value = b.getAttribute('data-min');
+      renderPreview();
+    });
+  });
+  $('newForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var est = num($('est').value);
+    if (!(est >= 1)) { toast(t('tEnterEst')); return; }
+    var c = coef();
+    state.items.push({
+      id: Date.now() + Math.floor(Math.random() * 1000),
+      name: $('name').value.trim(),
+      est: Math.round(est),
+      kUsed: c.k,
+      forecast: Math.round(est * c.k),
+      startedAt: null,
+      fact: null
+    });
+    save();
+    $('newForm').reset();
+    renderAll();
+    toast(t('tAdded'));
+  });
+
+  // ---- Data ----
+  function shownK(c) { return c.personal ? c.k : c.raw; }
+  function copyText(s) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(s);
+    }
+    return new Promise(function (res, rej) {
+      var ta = el('textarea', { 'aria-hidden': 'true' });
+      ta.value = s; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.append(ta); ta.select();
+      try { document.execCommand('copy') ? res() : rej(); } catch (err) { rej(err); }
+      ta.remove();
+    });
+  }
+  $('copyBtn').addEventListener('click', function () {
+    var c = coef();
+    if (c.n < 1) { toast(t('tNeedOne')); return; }
+    var k = fmtK(shownK(c));
+    copyText(t('chat', k, c.n, taskDat(c.n), location.href)).then(
+      function () { toast(t('tCopied')); },
+      function () { toast(t('tCopyFail')); });
+  });
+  if (FORM_URL) {
+    $('formBtn').hidden = false;
+    $('formBtn').addEventListener('click', function () {
+      var c = coef();
+      if (c.n < 1) { toast(t('tNeedOne')); return; }
+      window.open(FORM_URL, '_blank', 'noopener');
+      copyText('×' + fmtK(shownK(c))).then(function () { toast(t('tFormCopied')); }, function () {});
+    });
+  }
+  $('csvBtn').addEventListener('click', function () {
+    var rows = [['task', 'estimate_min', 'actual_min', 'ratio']];
+    state.items.forEach(function (it) {
+      rows.push([it.name || '', it.est, it.fact || '', it.fact ? (it.fact / it.est).toFixed(2) : '']);
+    });
+    var csv = '\ufeff' + rows.map(function (r) {
+      return r.map(function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(',');
+    }).join('\r\n');
+    try {
+      var url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      var a = el('a', { href: url, download: 'time-calculator.csv' });
+      document.body.append(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    } catch (e) { toast(t('tCsvFail')); }
+  });
+  var clearArmed = false, clearTimer = null;
+  function resetClear() { clearArmed = false; clearTimeout(clearTimer); $('clearBtn').textContent = t('clearBtn'); }
+  $('clearBtn').addEventListener('click', function () {
+    var b = $('clearBtn');
+    if (!clearArmed) {
+      clearArmed = true; b.textContent = t('clearSure');
+      clearTimer = setTimeout(resetClear, 3000);
+      return;
+    }
+    resetClear();
+    state = { items: [] }; save(); renderAll(); toast(t('tCleared'));
+  });
+
+  // ---- Language ----
+  function applyStatic() {
+    document.documentElement.lang = lang;
+    document.title = t('title');
+    document.querySelectorAll('[data-i18n]').forEach(function (n) { n.textContent = t(n.getAttribute('data-i18n')); });
+    document.querySelectorAll('[data-i18n-ph]').forEach(function (n) { n.setAttribute('placeholder', t(n.getAttribute('data-i18n-ph'))); });
+    document.querySelectorAll('[data-i18n-label]').forEach(function (n) { n.setAttribute('aria-label', t(n.getAttribute('data-i18n-label'))); });
+    document.querySelectorAll('.lang button').forEach(function (b) {
+      b.setAttribute('aria-pressed', b.getAttribute('data-lang') === lang ? 'true' : 'false');
+    });
+    resetClear();
+  }
+  document.querySelectorAll('.lang button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      lang = b.getAttribute('data-lang');
+      try { localStorage.setItem(LANG_KEY, lang); } catch (e) {}
+      applyStatic(); renderAll();
+    });
+  });
+
+  function renderAll() { renderK(); renderPreview(); renderJournal(); }
+  applyStatic();
+  renderAll();
+})();
+</script>
+</body>
+</html>
